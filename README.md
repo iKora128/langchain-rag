@@ -1,207 +1,153 @@
-Below is an example of a detailed **README.md** that explains the project’s purpose, usage, file roles, as well as an overview of LangChain and Elasticsearch. Following the README, some improvement suggestions are provided.
+# RAG LangChain & Elasticsearch プロジェクト
 
----
+このリポジトリは、[LangChain](https://github.com/hwchase17/langchain) と [Elasticsearch](https://www.elastic.co/elasticsearch/) を組み合わせた Retrieval-Augmented Generation (RAG) システムの実装例です。  
+文書の埋め込み生成、PDFやWebからのデータ抽出、ベクトルインデックスへの格納、そしてセマンティック検索を行う仕組みを提供します。
 
-```markdown
-# RAG LangChain & Elasticsearch
+## 概要
 
-This repository demonstrates a retrieval-augmented generation (RAG) system built using [LangChain](https://github.com/hwchase17/langchain) and [Elasticsearch](https://www.elastic.co/elasticsearch/). It showcases how to embed, index, and retrieve documents (from PDFs and web-scraped content) using state-of-the-art language models and semantic search.
+- **文書埋め込み**  
+  HuggingFace の多言語モデル (`intfloat/multilingual-e5-large`) を利用して、文書の埋め込みを生成します。
 
-## Overview
+- **PDF からのテキスト抽出**  
+  [pdfminer](https://github.com/pdfminer/pdfminer.six) を用いて、PDFファイルからページごとにテキストを抽出・クリーンアップします。
 
-The project includes:
-- **Document Embedding:** Using a HuggingFace multilingual model (`intfloat/multilingual-e5-large`) to generate embeddings.
-- **PDF Processing:** Extracting text from PDFs (page-by-page) using [pdfminer](https://github.com/pdfminer/pdfminer.six).
-- **Web Scraping:** Extracting MSD (Medical Subject Data) articles using [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/).
-- **Vector Indexing & Retrieval:** Storing document embeddings in Elasticsearch for semantic search, and performing retrieval-augmented generation (RAG) with LangChain.
-- **Testing & Utility Scripts:** Scripts for testing Elasticsearch connectivity and processing batches of PDFs or web data.
+- **Webスクレイピング (MSDデータ)**  
+  [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/) を用い、MSD（医療系）の記事データをスクレイピングしてJSONに変換します。
 
-## Directory Structure
+- **ベクトルインデックスと検索**  
+  Elasticsearch に埋め込み済み文書を格納し、LangChain のラッパーを用いてセマンティック検索（類似度検索）を実現します。
+
+- **サンプルスクリプトとユーティリティ**  
+  Elasticsearch の接続確認や、PDF/MSDデータの処理、埋め込み生成、検索クエリの実行などを行うスクリプト群を含みます。
+
+## ディレクトリ構成
 
 ```
 ikora128-langchain-rag/
-├── README.md                  # This file: explains usage, project structure, and details
-├── elasticsearch.txt          # Instructions for starting and checking your Elasticsearch instance
-├── embed.py                   # Example script for generating document embeddings with LangChain
-├── pdfloader.py               # Functions to extract text from PDF files using pdfminer
-├── pyproject.toml             # Project configuration and dependency management
-├── rag.py                   # Main retrieval QA example: queries Elasticsearch using LangChain
-├── requirements.txt           # List of required Python packages
-├── save_msd_data.py           # Loads MSD JSON data, converts to LangChain Document objects, and saves vectors
-├── save_vector.py             # Processes PDFs: extracts text, splits into chunks, and indexes in Elasticsearch
-├── uv.lock                   # (Lock file for a specific tool/environment)
-├── .python-version            # Specifies Python 3.12
-├── assets/                   # Directory for assets (e.g., JSON data files)
-└── scripts/                  # Additional utility and test scripts
-    ├── es_test.py             # Tests Elasticsearch connectivity and performs a sample query
-    └── msd.py                 # Web scraper to extract MSD article data from the web
+├── README.md                  
+├── elasticsearch.txt  # Elasticsearch の起動、インストールのメモ
+├── embed.py           # サンプルテキストの埋め込み生成スクリプト
+├── pdfloader.py       # PDFからテキストを抽出（ページ単位での抽出など）
+├── pyproject.toml             
+├── rag.py         　   # RetrievalQAの例。Elasticsearch から類似文書検索を実施するスクリプト
+├── requirements.txt   
+├── save_msd_data.py
+├── save_vector.py     # PDFのテキスト抽出、チャンク分割、Elasticsearch へのベクトル保存処理を行うスクリプト
+├── uv.lock           
+├── .python-version
+├── assets/                 
+└── scripts/            
+    ├── es_test.py
+    └── msd.py
 ```
 
-## Files & Their Roles
+## 各ファイルの役割
 
 - **elasticsearch.txt**  
-  Provides terminal commands for starting the Elasticsearch service, checking your instance, and notes on the installation path.
+  Elasticsearch を起動するためのコマンドや、インスタンスの確認方法、インストールディレクトリに関する情報を記載しています。
 
 - **embed.py**  
-  A simple script that demonstrates how to use the LangChain community’s HuggingFace embeddings to process a sample (multilingual) text. Useful as a reference for generating document embeddings.
+  HuggingFace の埋め込みモデルを用いて、サンプルテキストの埋め込みを生成する例です。LangChain のコミュニティ埋め込みモジュールの使い方を学ぶのに適しています。
 
 - **pdfloader.py**  
-  Contains two functions:  
-  - `pdf2txt_page_split`: Reads a PDF file, extracts text page-by-page, cleans it, and returns a list of strings.  
-  - `pdf2txt_all`: Uses high-level API to extract all text (prints to stdout).  
-  This module is a key part of the PDF ingestion pipeline.
-
+  PDFファイルからテキストを抽出する関数群を提供します。  
+  - `pdf2txt_page_split`: PDFをページごとに読み込み、テキストを抽出・クリーンアップしてリストで返す関数。  
+  - `pdf2txt_all`: pdfminer の高レベルAPIを用いてPDF全体のテキストを抽出（標準出力に表示）。
+  
 - **rag.py**  
-  Implements a retrieval-augmented generation (RAG) example. It sets up an Elasticsearch connection with proper security (using CA certificates and a fingerprint), creates an Elasticsearch vector store with LangChain, and runs a semantic search query (in Japanese) about pediatric fever and contraindications.
+  Elasticsearch に接続し、LangChain の `ElasticsearchStore` を利用して、質問に対する類似文書検索（セマンティック検索）を実行するサンプルです。  
+  環境変数や証明書、フィンガープリントなど、セキュリティ設定が必要な点に注意してください。
 
 - **save_vector.py**  
-  Provides functions to:  
-  - Load PDFs using `pdfloader.py`
-  - Split each page into smaller text chunks with metadata (e.g., page number, processing timestamp)
-  - Index the chunks into Elasticsearch using LangChain’s vector store wrapper.  
-  Also includes a helper function `process_all_pdfs` that iterates over multiple PDF directories.
+  PDFファイルのテキストを抽出し、テキストをチャンクに分割、さらに各チャンクにメタデータ（ページ番号、処理日時、ソース種別など）を付加してElasticsearchにインデックスします。  
+  複数のPDFディレクトリを処理するための `process_all_pdfs` 関数も提供しています。
 
 - **save_msd_data.py**  
-  Loads a JSON file (assumed to be a collection of MSD web articles), converts each article into a LangChain `Document`, splits long texts into smaller chunks, attaches additional metadata (such as date, link, topic, etc.), and then calls `save_vector` to store them in Elasticsearch.
+  MSDのJSON形式データを読み込み、各記事をLangChainの `Document` オブジェクトに変換、さらにチャンク分割を行い、ベクトル化してElasticsearchに保存します。
 
 - **scripts/es_test.py**  
-  A testing script to verify the Elasticsearch connection and query functionality. It retrieves the indices, runs a sample query on the `test_index`, and prints search results.
+  Elasticsearch の接続状況と簡単な検索クエリの実行テストを行うスクリプトです。  
+  インデックス一覧の取得や、指定したインデックス（例：`test_index`）からの検索結果を表示します。
 
 - **scripts/msd.py**  
-  A web scraper that:  
-  - Retrieves and parses MSD article pages using BeautifulSoup.
-  - Extracts breadcrumb navigation (for metadata like date, topic, category, title) and article text.
-  - Saves combined data as JSON.  
-  Also includes functions to get links from category and topics pages, with a progress bar and delay between requests to respect the target site.
+  MSD記事をスクレイピングするスクリプトです。  
+  - 指定したURLからパンくずリスト（breadcrumb）を抽出し、記事のメタ情報（日付、リンク、トピック、カテゴリ、タイトル）を取得  
+  - 記事本文を取得し、JSON形式にまとめて保存します。  
+  また、カテゴリページやトピックページからリンクを抽出する関数も含まれています。
 
-## How to Use
+## 使い方
 
-### Prerequisites
+### 事前準備
 
-- **Python:** Ensure you have Python 3.12 (as specified in `.python-version`).
-- **Dependencies:** Install the required packages:
-  ```bash
-  pip install -r requirements.txt
-  ```
-  Alternatively, if you use a tool like Poetry or Pipenv, the `pyproject.toml` file is provided for dependency management.
+1. **Python バージョン**  
+   `.python-version` に記載されている通り、Python 3.12 以上を使用してください。
 
-- **Elasticsearch:**  
-  Make sure you have Elasticsearch (version ≥ 8.11.0) installed and running. Use the commands in `elasticsearch.txt` to start the service and check your instance.  
-  **Note:** Update the fingerprint (`FINGER_PRINT`) and CA certificate path (`CA_CERT`) in the scripts to match your environment.
+2. **依存パッケージのインストール**  
+   以下のコマンドで必要なパッケージをインストールします。
+   ```bash
+   pip install -r requirements.txt
+   ```
+   または、Poetry や Pipenv などのツールを利用する場合は `pyproject.toml` を参照してください。
 
-- **Environment Variables:**  
-  Set the `ELASTIC_PASSWORD` environment variable (and others if needed). For example:
-  ```bash
-  export ELASTIC_PASSWORD=your_actual_elastic_password
-  ```
+3. **Elasticsearch の設定**  
+   - Elasticsearch（バージョン 8.11.0 以上）がインストールされ、`elasticsearch.txt` の指示に従いサービスを起動してください。
+   - 各スクリプト内の `FINGER_PRINT` や `CA_CERT` の値は、ご利用の環境に合わせて適切に設定してください。
+   - 環境変数 `ELASTIC_PASSWORD` を設定します。  
+     例:
+     ```bash
+     export ELASTIC_PASSWORD=your_actual_elastic_password
+     ```
 
-### Running the Scripts
+### 各スクリプトの実行
 
-1. **Embedding a Sample Text**  
-   Run `embed.py` to see how the HuggingFace embeddings work:
+1. **埋め込みのサンプル実行**  
+   HuggingFace の埋め込みモデルを使ったサンプルとして、以下を実行します。
    ```bash
    python embed.py
    ```
 
-2. **Processing PDFs & Indexing Vectors**  
-   To process PDFs and index them in Elasticsearch, run:
+2. **PDF の処理とベクトルインデックスの作成**  
+   PDFファイルからテキストを抽出し、チャンク分割してElasticsearchに保存する場合は、以下を実行します。
    ```bash
    python save_vector.py
    ```
-   This will process all PDFs in the specified directories within the script and index their content.
+   ※ スクリプト内に指定されているPDFディレクトリを必要に応じて変更してください。
 
-3. **Ingesting MSD Data**  
-   If you have an MSD JSON file (formatted as expected), you can ingest and index the articles by running:
+3. **MSDデータのインデックス化**  
+   MSDのJSONファイル（フォーマットに沿ったデータ）をElasticsearchにインデックスする場合は、以下を実行します。
    ```bash
    python save_msd_data.py
    ```
 
-4. **Performing a Retrieval QA Query**  
-   Run `rag.py` to perform a semantic search over the indexed documents:
+4. **Retrieval QA の実行**  
+   Elasticsearch にインデックスされた文書に対して質問を投げ、関連する文書を検索するには、以下を実行します。
    ```bash
    python rag.py
    ```
-   This script will query the Elasticsearch index (e.g., "pmda") and print out the most relevant documents based on the query.
+   ※ 質問文やインデックス名は、必要に応じて変更してください。
 
-5. **Testing Elasticsearch Connection**  
-   Use the test script to verify connectivity:
+5. **Elasticsearch 接続テスト**  
+   Elasticsearch の接続確認や簡単な検索テストを実施する場合は、以下を実行します。
    ```bash
    python scripts/es_test.py
    ```
 
-6. **Scraping MSD Articles**  
-   To scrape MSD article data, adjust the `BASE_URL` in `scripts/msd.py` as needed and run:
+6. **MSD記事のスクレイピング**  
+   MSDのWeb記事をスクレイピングする場合は、`scripts/msd.py` 内の `BASE_URL` 等を必要に応じて設定した上で、以下を実行します。
    ```bash
    python scripts/msd.py
    ```
-   The scraped data will be saved as a JSON file in the designated assets folder.
+   スクレイピングしたデータは、指定されたJSONファイルに保存されます。
 
-## About LangChain and Elasticsearch
+## LangChain と Elasticsearch について
 
 ### LangChain
-[LangChain](https://github.com/hwchase17/langchain) is a framework designed to help developers build applications powered by large language models (LLMs). It offers:
-- **Chains:** Composable pipelines that link together LLM calls, document retrieval, and processing.
-- **Integration:** Support for various data sources, including vector databases (like Elasticsearch), to build retrieval-augmented generation systems.
-- **Embeddings & Vector Stores:** Out-of-the-box support for embedding models and vector databases for semantic search.
+[LangChain](https://github.com/hwchase17/langchain) は、大規模言語モデル（LLM）を活用したアプリケーションの構築を支援するフレームワークです。  
+- **チェーン（Chains）**: LLMの呼び出し、文書検索、データ処理などを組み合わせたパイプラインを構築できます。  
+- **埋め込みとベクトルストア**: 文書の埋め込み生成および、Elasticsearchなどのベクトルデータベースとの連携が可能です。  
 
 ### Elasticsearch
-[Elasticsearch](https://www.elastic.co/elasticsearch/) is a highly scalable search engine used for full-text search, logging, and analytics. In this project:
-- **Indexing:** Documents (or chunks thereof) are stored in Elasticsearch after being embedded into vectors.
-- **Semantic Search:** With the vector store integration, Elasticsearch can perform similarity searches based on document embeddings.
-- **Security:** The connection is secured using CA certificates and fingerprint verification. Adjust these settings to suit your deployment environment.
-
-## Suggestions for Improvement & Missing Elements
-
-1. **Error Handling & Resource Management:**  
-   - Use context managers (e.g., `with open(...) as fp:`) in file operations for better resource handling.
-   - Add more robust error handling in PDF processing and network requests (e.g., retry logic).
-
-2. **Parameterization & Configuration:**  
-   - Externalize hard-coded paths (like JSON file paths, PDF directories, and index names) into a configuration file or environment variables.
-   - Replace the placeholder `"your_fingerprint"` with a dynamic or properly documented configuration option.
-
-3. **Logging:**  
-   - Integrate a logging library to provide more detailed runtime information rather than using `print` statements.
-
-4. **Testing:**  
-   - Consider adding unit tests and integration tests to validate the functionality of key components (e.g., embedding generation, PDF parsing, and Elasticsearch indexing).
-
-5. **Documentation & Comments:**  
-   - Expand inline comments and docstrings in the code to improve maintainability.
-   - Provide sample JSON data or additional documentation for the expected MSD data format.
-
-6. **Performance Enhancements:**  
-   - For large PDF files or many network requests, consider asynchronous processing to improve throughput.
-   - Optimize text chunking and cleaning for better performance and consistency.
-
----
-
-By following the usage instructions and reviewing the code structure outlined above, you should be able to integrate document embedding, vector search, and retrieval-augmented generation in your applications using LangChain and Elasticsearch.
-
-Happy coding!
-```
-
----
-
-### Summary of Proposed Improvements
-
-- **Resource Management:**  
-  Use `with open(...)` for file handling in both PDF processing and JSON operations.
-
-- **Configuration:**  
-  Externalize constants (file paths, index names, fingerprints) to a configuration file or environment variables.
-
-- **Error Handling & Logging:**  
-  Implement better error handling (e.g., retries for network requests) and use a logging library instead of `print` statements.
-
-- **Testing:**  
-  Add unit tests to validate critical components (embedding, PDF text extraction, Elasticsearch operations).
-
-- **Asynchronous Processing:**  
-  For web scraping or processing many PDFs, consider using asynchronous approaches to speed up execution.
-
-These enhancements would improve the robustness, maintainability, and scalability of the project.
-
----
-
-This README, along with the improvement suggestions, should serve as a comprehensive guide for understanding and using the repository.
+[Elasticsearch](https://www.elastic.co/elasticsearch/) は、高速でスケーラブルな全文検索エンジンです。  
+- **インデックス作成**: 文書（またはそのチャンク）をインデックスに格納し、検索を高速に実施します。  
+- **セマンティック検索**: 埋め込みベクトルを利用した類似度検索により、意味的に近い文書を効率的に検索できます。  
+- **セキュリティ**: CA証明書やフィンガープリントなどの設定により、安全な接続が可能です。
