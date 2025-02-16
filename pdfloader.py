@@ -1,9 +1,11 @@
+import re
 from io import StringIO
 from pdfminer.converter import TextConverter
 from pdfminer.layout import LAParams
 from pdfminer.pdfinterp import PDFPageInterpreter, PDFResourceManager
 from pdfminer.pdfpage import PDFPage
 from pdfminer.high_level import extract_text
+
 
 from pathlib import Path
 
@@ -28,8 +30,10 @@ def pdf2txt_page_split(pdf_path: Path) -> list[str]:
         interpreter.process_page(page)
         # Get the text
         text = retstr.getvalue()
+        # Clean the text(delete \n, \u, \\...)
+        cleaned_text = re.sub(r'[\u2002\u3000\u200c\n\x0c\ufeff\\]', '', text)
         # Add the text to the list
-        text_list.append(text)
+        text_list.append(cleaned_text)
         # Clear the text
         retstr.truncate(0)
         retstr.seek(0)
@@ -48,7 +52,8 @@ def pdf2txt_all(pdf_path: Path) -> str:
 
 
 if __name__ == "__main__":
-    pdf_path = Path("/home/nagashimadaichi/develop/assets/１％ディプリバン注.pdf")
-    text_list = pdf2txt_all(pdf_path)
+    pdf_path = Path("/Users/nagashimadaichi/Downloads/法定健診_demo (3).pdf")
+    #text_list = pdf2txt_all(pdf_path)
     #print(f"pages: {len(text_list)}")
+    text_list = pdf2txt_page_split(pdf_path)
     print(text_list)
