@@ -1,7 +1,6 @@
-from pathlib import Path
 import json
 
-from langchain_community.vectorstores import ElasticsearchStore
+from langchain.vectorstores import ElasticsearchStore
 from langchain.chains import RetrievalQA
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import CharacterTextSplitter, Document
